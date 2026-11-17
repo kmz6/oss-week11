@@ -11,6 +11,12 @@
 // 이 파일은 public/ 밖에 있습니다. 브라우저 주소창으로는 열리지 않습니다(P4 에서 확인).
 
 // P4 부터 여기 아래에 씁니다.
+
+if (!process.env.ADMIN_TOKEN) {
+  console.error("ADMIN_TOKEN is not set. Copy .env.example to .env.");
+  process.exit(1);
+}
+
 import express from "express";
 import { toDays } from "./public/logic.js";
 import { getDaily, getSampleDaily } from "./openMeteo.js";
@@ -37,15 +43,26 @@ const CITIES = {
   gangneung: { name: "Gangneung", lat: 37.7519, lon: 128.8761 },
 };
 
+const counts = {};
+
 app.get("/api/forecast", async (req, res) => {
   const city = req.query.city;
   if (!Object.hasOwn(CITIES, city)) {
     return res.status(400).json({ error: `Unknown city: ${city}` });
   }
+  counts[city] = (counts[city] ?? 0) + 1;
   try {
     const days = toDays(await getDaily(city));
     res.json({ city: CITIES[city].name, days });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
+});
+
+app.get("/api/stats", (req, res) => {
+  if (req.get("Authorization") !== `Bearer ${process.env.ADMIN_TOKEN}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  res.status(200).json(counts);
 });
