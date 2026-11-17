@@ -12,6 +12,8 @@
 
 // P4 부터 여기 아래에 씁니다.
 import express from "express";
+import { toDays } from "./public/logic.js";
+import { getDaily, getSampleDaily } from "./openMeteo.js";
 
 const app = express();
 const port = process.env.PORT ?? 3000;
@@ -27,4 +29,23 @@ const server = app.listen(port, () => {
 });
 server.on("error", (error) => {
   throw error;
+});
+
+const CITIES = {
+  seoul: { name: "Seoul", lat: 37.566, lon: 126.9784 },
+  daejeon: { name: "Daejeon", lat: 36.3504, lon: 127.3845 },
+  gangneung: { name: "Gangneung", lat: 37.7519, lon: 128.8761 },
+};
+
+app.get("/api/forecast", async (req, res) => {
+  const city = req.query.city;
+  if (!Object.hasOwn(CITIES, city)) {
+    return res.status(400).json({ error: `Unknown city: ${city}` });
+  }
+  try {
+    const days = toDays(await getSampleDaily(city));
+    res.json({ city: CITIES[city].name, days });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
